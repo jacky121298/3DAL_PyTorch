@@ -1,0 +1,32 @@
+fire
+tqdm
+numba
+numpy
+pyyaml
+addict
+jupyter
+Shapely
+requests
+protobuf
+pybind11
+easydict
+objgraph
+descartes
+matplotlib
+cachetools
+pycocotools
+SharedArray
+scikit-learn
+tensorboardX
+# opencv-python
+# open3d-python
+pytest-runner
+terminaltables
+imagecorruptions
+opencv-contrib-python
+gast==0.2.2
+pandas>=0.24
+Pillow<=6.2.1
+motmetrics<=1.1.3
+pyquaternion>=0.9.5
+nuscenes-devkit==1.0.5
