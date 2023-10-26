@@ -290,7 +290,6 @@ def test_one_epoch(model, dataloader, logger):
     return final_bboxes
 
 def main():
-    # CUDA_VISIBLE_DEVICES=0 python3 tools/static_eval.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/trackStatic.pkl --infos data/Waymo/infos_val_02sweeps_filter_zero_gt.pkl --model_path work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/train/static/model/one_box_est/856392.pth --model_type one_box_est --det_annos work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/det_annos.pkl
     parser = argparse.ArgumentParser()
     parser.add_argument('--track', help='Path to trackStatic.pkl.')
     parser.add_argument('--infos', help='Path to infos file.')
@@ -304,7 +303,7 @@ def main():
     fixSeed(seed=10922081)
 
     assert args.model_type in ['one_box_est', 'two_box_est'], f'No model supports for model type \"{args.model_type}\".'
-    result_dir = pathlib.Path(args.track).parent / 'static'
+    result_dir = pathlib.Path(args.track).parent / 'static' / 'boxes'
     result_dir.mkdir(parents=True, exist_ok=True)
     log_dir = pathlib.Path(args.track).parent / 'static' / 'log' / 'eval'
     log_dir.mkdir(parents=True, exist_ok=True)

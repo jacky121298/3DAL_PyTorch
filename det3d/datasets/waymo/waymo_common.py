@@ -64,7 +64,7 @@ def transform_box(box, pose):
     transformed = np.concatenate([center, box[..., 3:6], heading[..., np.newaxis]], axis=-1)
     return np.squeeze(transformed)
 
-def _create_pd_detection(detections, infos, result_path, tracking=False):
+def _create_pd_detection(detections, infos, result_path, tracking=False, ratio=0.25, split=16):
     '''Creates a prediction objects file.'''
     from waymo_open_dataset import label_pb2
     from waymo_open_dataset.protos import metrics_pb2
@@ -73,6 +73,10 @@ def _create_pd_detection(detections, infos, result_path, tracking=False):
     trackData = {}
     objects = metrics_pb2.Objects()
     det_annos = []
+
+    if 'train' in result_path:
+        detections_list = list(detections.items())
+        detections = dict(detections_list[:int(len(detections_list) * ratio)])
 
     for token, detection in tqdm(detections.items()):
         '''
@@ -205,12 +209,10 @@ def _create_pd_detection(detections, infos, result_path, tracking=False):
     if tracking:
         if 'train' in result_path:
             trackData_list = list(trackData.items())
-            trackData_one = dict(trackData_list[:len(trackData_list) // 2])
-            trackData_two = dict(trackData_list[len(trackData_list) // 2:])
-            with open(os.path.join(result_path, 'trackData_one.pkl'), 'wb') as f:
-                pickle.dump(trackData_one, f)
-            with open(os.path.join(result_path, 'trackData_two.pkl'), 'wb') as f:
-                pickle.dump(trackData_two, f)
+            for i in range(split):
+                trackData_split = dict(trackData_list[len(trackData_list) * i // split: len(trackData_list) * (i + 1) // split])
+                with open(os.path.join(result_path, f'trackData_{i}.pkl'), 'wb') as f:
+                    pickle.dump(trackData_split, f)
         elif 'val' in result_path:
             with open(os.path.join(result_path, 'trackData.pkl'), 'wb') as f:
                 pickle.dump(trackData, f)

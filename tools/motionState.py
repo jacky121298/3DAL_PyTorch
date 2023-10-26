@@ -67,10 +67,10 @@ def trackFeature(track: dict, trackGT: dict, training: bool=False):
     return trainX, trainY, new_track
 
 def main():
-    # python3 tools/motionState.py --track_train work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/train --track_val work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val
     parser = argparse.ArgumentParser()
-    parser.add_argument('--track_train', help='Path to train/track.pkl.')
-    parser.add_argument('--track_val', help='Path to val/track.pkl.')
+    parser.add_argument('--track_train', help='Path to train track data.')
+    parser.add_argument('--track_val', help='Path to val track data.')
+    parser.add_argument('--split', default=16, help='Number of train split.')
     args = parser.parse_args()
 
     # Fix the random seed
@@ -78,11 +78,11 @@ def main():
 
     ###### Pre-processing data ######
     print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Reading train data')
-    with open(os.path.join(args.track_train, 'track_one.pkl'), 'rb') as f:
-        track_train_one = pickle.load(f)
-    with open(os.path.join(args.track_train, 'track_two.pkl'), 'rb') as f:
-        track_train_two = pickle.load(f)
-    track_train = dict(list(track_train_one.items()) + list(track_train_two.items()))
+    track_train = {}
+    for i in range(args.split):
+        with open(os.path.join(args.track_train, f'track_{i}.pkl'), 'rb') as f:
+            track_train_split = pickle.load(f)
+        track_train = dict(list(track_train.items()) + list(track_train_split.items()))
 
     print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Reading train GT data')
     with open(os.path.join(args.track_train, 'trackGT.pkl'), 'rb') as f:
@@ -95,39 +95,17 @@ def main():
 
     print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Saving train/trackStatic.pkl')
     static_list = list(static.items())
-    static_one = dict(static_list[:len(static_list) // 3])
-    static_two = dict(static_list[len(static_list) // 3: 2 * len(static_list) // 3])
-    static_thr = dict(static_list[2 * len(static_list) // 3:])
-    with open(os.path.join(args.track_train, 'trackStatic_one.pkl'), 'wb') as f:
-        pickle.dump(static_one, f)
-    del static_one
-    gc.collect()
-    with open(os.path.join(args.track_train, 'trackStatic_two.pkl'), 'wb') as f:
-        pickle.dump(static_two, f)
-    del static_two
-    gc.collect()
-    with open(os.path.join(args.track_train, 'trackStatic_thr.pkl'), 'wb') as f:
-        pickle.dump(static_thr, f)
-    del static_thr
-    gc.collect()
-
+    for i in range(args.split):
+        static_split = dict(static_list[len(static_list) * i // args.split: len(static_list) * (i + 1) // args.split])
+        with open(os.path.join(args.track_train, f'trackStatic_{i}.pkl'), 'wb') as f:
+            pickle.dump(static_split, f)
+    
     print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Saving train/trackDynamic.pkl')
     dynamic_list = list(dynamic.items())
-    dynamic_one = dict(dynamic_list[:len(dynamic_list) // 3])
-    dynamic_two = dict(dynamic_list[len(dynamic_list) // 3: 2 * len(dynamic_list) // 3])
-    dynamic_thr = dict(dynamic_list[2 * len(dynamic_list) // 3:])
-    with open(os.path.join(args.track_train, 'trackDynamic_one.pkl'), 'wb') as f:
-        pickle.dump(dynamic_one, f)
-    del dynamic_one
-    gc.collect()
-    with open(os.path.join(args.track_train, 'trackDynamic_two.pkl'), 'wb') as f:
-        pickle.dump(dynamic_two, f)
-    del dynamic_two
-    gc.collect()
-    with open(os.path.join(args.track_train, 'trackDynamic_thr.pkl'), 'wb') as f:
-        pickle.dump(dynamic_thr, f)
-    del dynamic_thr
-    gc.collect()
+    for i in range(args.split):
+        dynamic_split = dict(dynamic_list[len(dynamic_list) * i // args.split: len(dynamic_list) * (i + 1) // args.split])
+        with open(os.path.join(args.track_train, f'trackDynamic_{i}.pkl'), 'wb') as f:
+            pickle.dump(dynamic_split, f)
 
     print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Reading val data')
     with open(os.path.join(args.track_val, 'track.pkl'), 'rb') as f:
@@ -171,44 +149,6 @@ def main():
         pickle.dump(trackDynamic, f)
     del trackDynamic
     gc.collect()
-
-    # print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Saving train/trackStatic.pkl')
-    # static_list = list(static.items())
-    # static_one = dict(static_list[:len(static_list) // 2])
-    # static_two = dict(static_list[len(static_list) // 2:])
-    # with open(os.path.join(args.track_train, 'trackStatic_one.pkl'), 'wb') as f:
-    #     pickle.dump(static_one, f)
-    # del static_one
-    # gc.collect()
-    # with open(os.path.join(args.track_train, 'trackStatic_two.pkl'), 'wb') as f:
-    #     pickle.dump(static_two, f)
-    # del static_two
-    # gc.collect()
-
-    # print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Saving train/trackStatic.pkl')
-    # with open(os.path.join(args.track_train, 'trackStatic.pkl'), 'wb') as f:
-    #     pickle.dump(static, f)
-    # del static
-    # gc.collect()
-
-    # print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Saving train/trackDynamic.pkl')
-    # dynamic_list = list(dynamic.items())
-    # dynamic_one = dict(dynamic_list[:len(dynamic_list) // 2])
-    # dynamic_two = dict(dynamic_list[len(dynamic_list) // 2:])
-    # with open(os.path.join(args.track_train, 'trackDynamic_one.pkl'), 'wb') as f:
-    #     pickle.dump(dynamic_one, f)
-    # del dynamic_one
-    # gc.collect()
-    # with open(os.path.join(args.track_train, 'trackDynamic_two.pkl'), 'wb') as f:
-    #     pickle.dump(dynamic_two, f)
-    # del dynamic_two
-    # gc.collect()
-
-    # print(f'{bcolors.OKCYAN}>{bcolors.ENDC} Saving train/trackDynamic.pkl')
-    # with open(os.path.join(args.track_train, 'trackDynamic.pkl'), 'wb') as f:
-    #     pickle.dump(dynamic, f)
-    # del dynamic
-    # gc.collect()
 
 if __name__ == '__main__':
     main()

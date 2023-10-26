@@ -7,14 +7,15 @@ from tqdm import tqdm
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--work_dir', help='Path to working dir.')
+    parser.add_argument('--split', default=16, help='Number of train split.')
     args = parser.parse_args()
 
     if args.work_dir.split('/')[-1] == 'train':
-        with open(os.path.join(args.work_dir, 'trackData_one.pkl'), 'rb') as f:
-            track_one = pickle.load(f)
-        with open(os.path.join(args.work_dir, 'trackData_two.pkl'), 'rb') as f:
-            track_two = pickle.load(f)
-        track = dict(list(track_one.items()) + list(track_two.items()))
+        track = {}
+        for i in range(args.split):
+            with open(os.path.join(args.work_dir, f'trackData_{i}.pkl'), 'rb') as f:
+                track_split = pickle.load(f)
+            track = dict(list(track.items()) + list(track_split.items()))
     elif args.work_dir.split('/')[-1] == 'val':
         with open(os.path.join(args.work_dir, 'trackData.pkl'), 'rb') as f:
             track = pickle.load(f)
@@ -45,12 +46,10 @@ def main():
     
     if args.work_dir.split('/')[-1] == 'train':
         tracking_list = list(tracking.items())
-        tracking_one = dict(tracking_list[:len(tracking_list) // 2])
-        tracking_two = dict(tracking_list[len(tracking_list) // 2:])
-        with open(os.path.join(args.work_dir, 'track_one.pkl'), 'wb') as f:
-            pickle.dump(tracking_one, f)
-        with open(os.path.join(args.work_dir, 'track_two.pkl'), 'wb') as f:
-            pickle.dump(tracking_two, f)
+        for i in range(args.split):
+            tracking_split = dict(tracking_list[len(tracking_list) * i // args.split: len(tracking_list) * (i + 1) // args.split])
+            with open(os.path.join(args.work_dir, f'track_{i}.pkl'), 'wb') as f:
+                pickle.dump(tracking_split, f)
     elif args.work_dir.split('/')[-1] == 'val':
         with open(os.path.join(args.work_dir, 'track.pkl'), 'wb') as f:
             pickle.dump(tracking, f)

@@ -2,7 +2,7 @@
 
 This is the pytorch implementation of 3DAL proposed by [Qi et. al, "Offboard 3D Object Detection from Point Cloud Sequences", CVPR 2021](https://arxiv.org/abs/2103.05073).
 
-![](docs/3DAL.png)
+<p align="center"><img src="docs/3DAL.png" width="600"></p>
 
 ## Introduction
 

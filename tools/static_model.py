@@ -108,7 +108,7 @@ def rotz(angle: torch.float):
 class StaticModelOneBoxEst(nn.Module):
     def __init__(self, n_classes=3, n_channel=3):
         super(StaticModelOneBoxEst, self).__init__()
-        self.name = one_box_est
+        self.name = 'one_box_est'
         self.n_classes = n_classes
         self.n_channel = n_channel
         self.ins_seg = PointNetInstanceSeg(n_classes=n_classes, n_channel=n_channel)
@@ -148,7 +148,7 @@ class StaticModelOneBoxEst(nn.Module):
 class StaticModelTwoBoxEst(nn.Module):
     def __init__(self, n_classes=3, n_channel=3):
         super(StaticModelTwoBoxEst, self).__init__()
-        self.name = two_box_est
+        self.name = 'two_box_est'
         self.n_classes = n_classes
         self.n_channel = n_channel
         self.ins_seg = PointNetInstanceSeg(n_classes=n_classes, n_channel=n_channel)
@@ -185,7 +185,7 @@ class StaticModelTwoBoxEst(nn.Module):
         for i in range(bs):
             box_size[i, :] = class2size(size_class[i], size_residual[i])
             heading_angle[i] = class2angle(heading_class[i], heading_residual[i], NUM_HEADING_BIN)
-            heading_angle[i] += init_box[i, -1]
+            heading_angle[i] += init_box.cpu().detach().numpy()[i, -1]
         box_one = np.concatenate((center_one.cpu().detach().numpy(), box_size, heading_angle), axis=1) # (bs, 7)
         box_one = torch.from_numpy(box_one).float().cuda()
 
