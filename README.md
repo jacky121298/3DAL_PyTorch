@@ -20,13 +20,11 @@ Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Visualization
 
-### Static Object Tracking Data
+Different temporal viewpoints of an object provide complementary information regarding its geometry. Through the fusion of point cloud sequences across consecutive frames, we can attain a more comprehensive representation for static objects and a continuous trajectory for dynamic objects.
 
-<p align="center"><img src="docs/static.png" width="500"></p>
-
-### Dynamic Object Tracking Data
-
-<p align="center"><img src="docs/dynamic.png" width="500"></p>
+| Static Object Tracking Data | Dynamic Object Tracking Data |
+|:---------------------------:|:----------------------------:|
+| <p align="center"><img src="docs/static.png" width="400"></p> | <p align="center"><img src="docs/dynamic.png" width="400"></p> |
 
 ## Acknowledgement
 
