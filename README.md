@@ -10,14 +10,6 @@ This is the pytorch implementation of 3DAL proposed by [Qi et. al, "Offboard 3D 
 
 Instead of employing the components outlined in the research paper, we have adopted [CenterPoint](https://arxiv.org/abs/2006.11275) for 3D Object Detection and 3D Multi-Object Tracking. For Static Object Auto Labeling and Dynamic Object Auto Labeling, we have developed our models based on [Frustum PointNets](https://arxiv.org/abs/1711.08488).
 
-## Installation
-
-Please refer to [INSTALL.md](docs/INSTALL.md).
-
-## Getting Started
-
-Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md).
-
 ## Visualization
 
 Different temporal viewpoints of an object provide complementary information regarding its geometry. By merging the point cloud sequences across consecutive frames, we can attain a more comprehensive representation for static objects and a continuous trajectory for dynamic objects.
@@ -25,6 +17,14 @@ Different temporal viewpoints of an object provide complementary information reg
 | Static Object Tracking Data | Dynamic Object Tracking Data |
 |:---------------------------:|:----------------------------:|
 | <p align="center"><img src="docs/static.png" width="400"></p> | <p align="center"><img src="docs/dynamic.png" width="400"></p> |
+
+## Installation
+
+Please refer to [INSTALL.md](docs/INSTALL.md).
+
+## Getting Started
+
+Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Acknowledgement
 
