@@ -20,7 +20,7 @@ Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Visualization
 
-Different temporal viewpoints of an object provide complementary information regarding its geometry. Through the fusion of point cloud sequences across consecutive frames, we can attain a more comprehensive representation for static objects and a continuous trajectory for dynamic objects.
+Different temporal viewpoints of an object provide complementary information regarding its geometry. By merging the point cloud sequences across consecutive frames, we can attain a more comprehensive representation for static objects and a continuous trajectory for dynamic objects.
 
 | Static Object Tracking Data | Dynamic Object Tracking Data |
 |:---------------------------:|:----------------------------:|
