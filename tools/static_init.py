@@ -250,7 +250,6 @@ def sort_detections(detections):
     return detections
 
 def main():
-    # python3 tools/static_init.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/trackStatic.pkl --infos data/Waymo/infos_val_02sweeps_filter_zero_gt.pkl --det_annos work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/det_annos.pkl
     parser = argparse.ArgumentParser()
     parser.add_argument('--track', help='Path to trackStatic.pkl.')
     parser.add_argument('--infos', help='Path to infos file.')

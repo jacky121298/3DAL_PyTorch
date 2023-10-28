@@ -151,7 +151,7 @@ def reorganize_info(infos):
     return new_info
 
 if __name__ == '__main__':
-    # python tools/vis_pred.py --data data/Waymo/val --seq seq_0_frame_0 --infos data/Waymo/infos_val_02sweeps_filter_zero_gt.pkl --pred1 work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/prediction.pkl --pred2 work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/static/one_box_est.pkl
+    # python tools/visualize/vis_pred.py --data data/Waymo/val --seq seq_0_frame_0 --infos data/Waymo/infos_val_02sweeps_filter_zero_gt.pkl --pred1 work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/prediction.pkl --pred2 work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/static/one_box_est.pkl
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', help='Path to data.')
     parser.add_argument('--seq', help='Sequence name.')

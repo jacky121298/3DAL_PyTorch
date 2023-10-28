@@ -68,7 +68,7 @@ def parse_output_to_tensors(box_pred, logits, mask):
         :param logits: (bs, n, 2)
         :param mask: (bs, n)
         :return:
-            center_boxnet: (bs, 3)
+            center: (bs, 3)
             heading_scores: (bs, 12)
             heading_residuals_normalized: (bs, 12), -1 to 1
             heading_residuals: (bs, 12)
@@ -79,7 +79,7 @@ def parse_output_to_tensors(box_pred, logits, mask):
     bs = box_pred.shape[0]
     # Center
     c = 3
-    center_boxnet = box_pred[:, :c]
+    center = box_pred[:, :c]
 
     # Heading
     heading_scores = box_pred[:, c:c + NUM_HEADING_BIN]
@@ -94,7 +94,7 @@ def parse_output_to_tensors(box_pred, logits, mask):
     size_residuals_normalized = box_pred[:, c:c + 3 * NUM_SIZE_CLUSTER].contiguous()
     size_residuals_normalized = size_residuals_normalized.view(bs, NUM_SIZE_CLUSTER, 3)
     size_residuals = size_residuals_normalized * torch.from_numpy(MEAN_SIZE_ARR).unsqueeze(0).repeat(bs, 1, 1).float().cuda()
-    return center_boxnet, heading_scores, heading_residuals_normalized, heading_residuals, size_scores, size_residuals_normalized, size_residuals
+    return center, heading_scores, heading_residuals_normalized, heading_residuals, size_scores, size_residuals_normalized, size_residuals
 
 def rotz(angle: torch.float):
     c = torch.cos(angle)
@@ -109,6 +109,8 @@ def rotz(angle: torch.float):
 class DynamicModel(nn.Module):
     def __init__(self, n_classes=3, n_channel=4):
         super(DynamicModel, self).__init__()
+        self.r = 2
+        self.s = 50
         self.n_classes = n_classes
         self.n_channel = n_channel
         self.ins_seg = PointNetInstanceSeg(n_classes=n_classes, n_channel=n_channel)
@@ -136,21 +138,19 @@ class DynamicModel(nn.Module):
         
         # 3D Box Estimation
         box_pred = self.box_est(embedding) # (bs, 59)
-        center_boxnet, heading_scores, heading_residuals_normalized, heading_residuals, \
+        center, heading_scores, heading_residuals_normalized, heading_residuals, \
         size_scores, size_residuals_normalized, size_residuals = parse_output_to_tensors(box_pred, logits, mask)
-        center = center_boxnet + box[:, :3, 50] # (bs, 3)
         
         output = {
             'logits': logits,
             'mask': mask,
-            'center_boxnet': center_boxnet,
+            'center': center,
             'heading_scores': heading_scores,
             'heading_residuals_normalized': heading_residuals_normalized,
             'heading_residuals': heading_residuals,
             'size_scores': size_scores,
             'size_residuals_normalized': size_residuals_normalized,
             'size_residuals': size_residuals,
-            'center': center,
         }
         return output
 
@@ -433,7 +433,7 @@ class DYNAMICTRACK(Dataset):
             else:
                 if len(self.track[track_idx]['point'][i]) > 0:
                     choice = np.random.choice(len(self.track[track_idx]['point'][i]), self.npoints, replace=True)
-                    point_cur = self.track[track_idx]['point'][i][choice]
+                    point_cur = np.copy(self.track[track_idx]['point'][i][choice])
                     point = np.vstack([point, np.hstack([point_cur, np.full((self.npoints, 1), 0.1 * (j - self.r))])])
                 else:
                     point = np.vstack([point, np.hstack([np.zeros((self.npoints, 3)), np.full((self.npoints, 1), 0.1 * (j - self.r))])])
@@ -443,7 +443,7 @@ class DYNAMICTRACK(Dataset):
             if i < 0 or i >= len(self.track[track_idx]['bbox']):
                 bbox = np.vstack([bbox, np.hstack([np.zeros((1, 7)), np.full((1, 1), 0.1 * (j - self.s))])])
             else:
-                bbox_cur = self.track[track_idx]['bbox'][i].reshape((1, 7))
+                bbox_cur = np.copy(self.track[track_idx]['bbox'][i].reshape((1, 7)))
                 bbox = np.vstack([bbox, np.hstack([bbox_cur, np.full((1, 1), 0.1 * (j - self.s))])])
     
         with open(self.infos[token]['anno_path'], 'rb') as f:
@@ -484,10 +484,14 @@ class DYNAMICTRACK(Dataset):
 
         mask_label = mask_label.flatten().astype(np.float)
         if len(bbox_gt) == 0:
-            return torch.tensor([0])
+            new_index = np.random.randint(self.__len__())
+            return self.__getitem__(new_index)
+
+        # init_box
+        init_box = np.copy(bbox[self.s])
         
         # center_label
-        center_label = bbox_gt[:3]
+        center_label = bbox_gt[:3] - bbox[self.s, :3]
 
         # heading_class_label & heading_residual_label
         heading_class_label, heading_residual_label = angle2class(bbox_gt[-1] - bbox[self.s, -2], NUM_HEADING_BIN)
@@ -502,7 +506,7 @@ class DYNAMICTRACK(Dataset):
         bbox[:, :3] = bbox[:, :3] - bbox[self.s, :3]
         bbox[:, -2] = bbox[:, -2] - bbox[self.s, -2]
 
-        return ID, torch.from_numpy(bbox), torch.from_numpy(bbox_gt), torch.from_numpy(point), token, mask_label, center_label, heading_class_label, heading_residual_label, size_class_label, size_residual_label
+        return ID, torch.from_numpy(init_box), torch.from_numpy(bbox), torch.from_numpy(bbox_gt), torch.from_numpy(point), token, mask_label, center_label, heading_class_label, heading_residual_label, size_class_label, size_residual_label
     
     def transform_box(self, box, pose):
         '''

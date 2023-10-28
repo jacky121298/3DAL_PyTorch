@@ -24,16 +24,6 @@ MEAN_SIZE_ARR = np.array([
     [ 2.0, 1.0, 1.6],
 ])
 
-def preprocessing(track):
-    del_keys = []
-    for k, v in track.items():
-        if v['type'][0] == 2:
-            del_keys.append(k)
-    
-    for k in del_keys:
-        del track[k]
-    return track
-
 def transform_box(box, pose):
     '''
     Transforms 3d upright boxes from one frame to another.
@@ -65,29 +55,20 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
         types = np.stack(value['type'])
         score = np.stack(value['score'])
         token = np.stack(value['token'])
-        best_box = bbox[[np.argmax(score)], ...]
 
-        with open(infos[token[np.argmax(score)]]['anno_path'], 'rb') as f:
-            _annos = pickle.load(f)
-        _pose = np.reshape(_annos['veh_to_global'], [4, 4])
-
-        n_samples += bbox.shape[0]
         for j, t in enumerate(token):
             with open(infos[t]['anno_path'], 'rb') as f:
                 annos = pickle.load(f)
             pose = np.linalg.inv(np.reshape(annos['veh_to_global'], [4, 4]))
             # For det_annos
             bbox[j] = transform_box(bbox[[j], ...], pose).squeeze()
-            final_bbox = transform_box(final_bboxes[[i], :], _pose)
-            final_bbox = transform_box(final_bbox, pose)
-            init_box = transform_box(best_box, pose)
-
+            final_bbox = final_bboxes[[n_samples + j], :]
             heading_scores = np.zeros((1, NUM_HEADING_BIN))
             heading_residuals = np.zeros((1, NUM_HEADING_BIN))
             size_scores = np.zeros((1, NUM_SIZE_CLUSTER))
             size_residuals = np.zeros((1, NUM_SIZE_CLUSTER, 3))
 
-            heading_class, heading_residual = angle2class(final_bbox[0, -1] - init_box[0, -1], NUM_HEADING_BIN)
+            heading_class, heading_residual = angle2class(final_bbox[0, -1], NUM_HEADING_BIN)
             heading_scores[0, heading_class] = 1
             heading_residuals[0, heading_class] = heading_residual
 
@@ -105,7 +86,7 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
             bbox_gt = bbox_gt[[0, 1, 2, 3, 4, 5, -1]]
             bbox_gt = bbox_gt[np.newaxis, ...]
 
-            heading_class_label, heading_residual_label = angle2class(bbox_gt[0, -1] - init_box[0, -1], NUM_HEADING_BIN)
+            heading_class_label, heading_residual_label = angle2class(bbox_gt[0, -1], NUM_HEADING_BIN)
             size_class_label, size_residual_label = size2class(bbox_gt[0, 3:6])
 
             heading_class_label = np.array(heading_class_label)[np.newaxis, ...]
@@ -140,10 +121,11 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
             for k, arr in enumerate(det_annos[token2idx[t]]['boxes_lidar']):
                 if np.linalg.norm(arr[:3] - bbox[j, :3]) < 0.1:
                     det_annos[token2idx[t]]['boxes_lidar'][k, :] = final_bbox.squeeze()
-                    # det_annos[token2idx[t]]['score'][k] = np.max(score)
                     exist = True
                     break
             assert exist, 'Bounding box not in det_annos.'
+        
+        n_samples += bbox.shape[0]
 
     logger.info(f'Saving results to {result_path}')
     with open(result_path, 'wb') as f:
@@ -177,7 +159,7 @@ def eval_one_epoch(model, dataloader, criterion):
     for i, data in enumerate(tqdm(dataloader)):
         model = model.eval()
 
-        ID, bbox, bbox_gt, pts, token, mask_label, center_label, \
+        ID, init_box, bbox, bbox_gt, pts, token, mask_label, center_label, \
         heading_class_label, heading_residual_label, \
         size_class_label, size_residual_label = data
         
@@ -230,12 +212,12 @@ def eval_one_epoch(model, dataloader, criterion):
 
     return eval_total_loss, eval_seg_acc, eval_iou2d, eval_iou3d, eval_iou3d_acc
 
-def test_one_epoch(model, dataloader, logger):
+def test_one_epoch(model, dataloader):
     final_bboxes = np.zeros((0, 7))
     for data in tqdm(dataloader):
         model = model.eval()
 
-        ID, bbox, bbox_gt, pts, token, mask_label, center_label, \
+        ID, init_box, bbox, bbox_gt, pts, token, mask_label, center_label, \
         heading_class_label, heading_residual_label, \
         size_class_label, size_residual_label = data
 
@@ -248,6 +230,7 @@ def test_one_epoch(model, dataloader, logger):
 
         output = model(pts, bbox, bbox_gt)
         bs = output['center'].shape[0]
+        center = output['center'].cpu().detach().numpy()
         heading_class = np.argmax(output['heading_scores'].cpu().detach().numpy(), 1) # (bs,)
         heading_residual = np.array([output['heading_residuals'].cpu().detach().numpy()[i, heading_class[i]] for i in range(bs)]) # (bs,)
         size_class = np.argmax(output['size_scores'].cpu().detach().numpy(), 1) # (bs,)
@@ -258,19 +241,18 @@ def test_one_epoch(model, dataloader, logger):
         for i in range(bs):
             box_size[i, :] = class2size(size_class[i], size_residual[i])
             heading_angle[i] = class2angle(heading_class[i], heading_residual[i], NUM_HEADING_BIN)
-            heading_angle[i] += init_box[i, -1].cpu().detach().numpy()
-        final_bbox = np.concatenate((output['center'].cpu().detach().numpy(), box_size, heading_angle), axis=1) # (bs, 7)
+            heading_angle[i] += init_box[i, -2].cpu().detach().numpy()
+            center[i] += init_box[i, :3].cpu().detach().numpy()
+        final_bbox = np.concatenate((center, box_size, heading_angle), axis=1) # (bs, 7)
         final_bboxes = np.concatenate((final_bboxes, final_bbox), axis=0)
 
     return final_bboxes
 
 def main():
-    # CUDA_VISIBLE_DEVICES=0 python3 tools/dynamic_eval.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/trackDynamic.pkl --infos data/Waymo/infos_val_02sweeps_filter_zero_gt.pkl --model_path work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/train/dynamic/model/one_box_est/acc0.856392_best.pth --model_type one_box_est --det_annos work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/det_annos.pkl
     parser = argparse.ArgumentParser()
-    parser.add_argument('--track', help='Path to trackStatic.pkl.')
+    parser.add_argument('--track', help='Path to trackDynamic.pkl.')
     parser.add_argument('--infos', help='Path to infos file.')
     parser.add_argument('--model_path', help='Path to model.')
-    parser.add_argument('--model_type', help='Type of model.')
     parser.add_argument('--det_annos', help='Path to detection annos.')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch Size during training [default: 64].')
     args = parser.parse_args()
@@ -278,12 +260,11 @@ def main():
     # Fix the random seed
     fixSeed(seed=10922081)
 
-    assert args.model_type in ['one_box_est', 'two_box_est'], f'No model supports for model type \"{args.model_type}\".'
-    result_dir = pathlib.Path(args.track).parent / 'static'
+    result_dir = pathlib.Path(args.track).parent / 'dynamic' / 'box'
     result_dir.mkdir(parents=True, exist_ok=True)
-    log_dir = pathlib.Path('tools/log/static_eval')
+    log_dir = pathlib.Path(args.track).parent / 'dynamic' / 'log' / 'eval'
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / f'{args.model_type}.txt'
+    log_file = log_dir / 'eval.txt'
 
     logger = create_logger(log_file=log_file)
     logger.info('Load track data')
@@ -309,23 +290,18 @@ def main():
         frame_id = annos['frame_id']
         token2idx[token] = annos2idx[f'segment-{scene_name}_with_camera_labels_{frame_id:03d}']
     
-    track = preprocessing(track, infos)
-    test_set = STATICTRACK(track, infos)
+    test_set = DYNAMICTRACK(track, infos)
     test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
 
     logger.info(f'Load model from {args.model_path}')
-    model_dict = {
-        'one_box_est': StaticModelOneBoxEst,
-        'two_box_est': StaticModelTwoBoxEst,
-    }
-    model = model_dict[args.model_type](n_classes=3, n_channel=3).cuda()
+    model = DynamicModel(n_classes=3, n_channel=4).cuda()
     model_state = torch.load(args.model_path)
     model.load_state_dict(model_state['model_state_dict'])
 
     logger.info('Start testing')
-    final_bboxes = test_one_epoch(model, test_loader, logger)
+    final_bboxes = test_one_epoch(model, test_loader)
     logger.info('Start post processing')
-    postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_dir / f'{args.model_type}.pkl', logger)
+    postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_dir / 'box.pkl', logger)
 
 if __name__ == '__main__':
     main()

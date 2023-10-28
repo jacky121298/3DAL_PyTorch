@@ -303,7 +303,7 @@ def main():
     fixSeed(seed=10922081)
 
     assert args.model_type in ['one_box_est', 'two_box_est'], f'No model supports for model type \"{args.model_type}\".'
-    result_dir = pathlib.Path(args.track).parent / 'static' / 'boxes'
+    result_dir = pathlib.Path(args.track).parent / 'static' / 'box'
     result_dir.mkdir(parents=True, exist_ok=True)
     log_dir = pathlib.Path(args.track).parent / 'static' / 'log' / 'eval'
     log_dir.mkdir(parents=True, exist_ok=True)

@@ -18,6 +18,16 @@ Please refer to [INSTALL.md](docs/INSTALL.md).
 
 Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
+## Visualization
+
+### Static Object Tracking Data
+
+<p align="center"><img src="docs/static.png" width="500"></p>
+
+### Dynamic Object Tracking Data
+
+<p align="center"><img src="docs/dynamic.png" width="500"></p>
+
 ## Acknowledgement
 
 This project is built upon the following codebases:

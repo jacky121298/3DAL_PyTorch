@@ -1,3 +1,4 @@
+import os
 import copy
 import torch
 import random
@@ -27,14 +28,6 @@ MEAN_SIZE_ARR = np.array([
 ])
 
 def preprocessing(track, ratio=0.1):
-    del_keys = []
-    for k, v in track.items():
-        if v['type'][0] == 2:
-            del_keys.append(k)
-    
-    for k in del_keys:
-        del track[k]
-    
     track = list(track.items())
     random.shuffle(track)
     train_track = dict(track[int(ratio * len(track)):])
@@ -56,10 +49,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, n_ep
         for i, data in enumerate(tqdm(train_loader)):
             model.train()
 
-            if len(data) == 1:
-                continue
-
-            ID, bbox, bbox_gt, pts, token, mask_label, center_label, \
+            ID, init_box, bbox, bbox_gt, pts, token, mask_label, center_label, \
             heading_class_label, heading_residual_label, \
             size_class_label, size_residual_label = data
 
@@ -106,7 +96,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, n_ep
             train_seg_acc += np.sum(correct)
 
         train_total_loss /= n_samples
-        train_seg_acc /= n_samples * float(NUM_POINT)
+        train_seg_acc /= n_samples * float(NUM_POINT * NUM_FRAME)
         train_iou2d /= n_samples
         train_iou3d /= n_samples
         train_iou3d_acc /= n_samples
@@ -125,18 +115,17 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, n_ep
         logger.info(f'[Eval] Box estimation accuracy (IoU=0.7): {eval_iou3d_acc:.4f}')
         if eval_iou3d_acc >= best_iou3d_acc:
             best_iou3d_acc = eval_iou3d_acc
-            if epoch > n_epoch / 5:
-                savepath = result_dir / f'acc{eval_iou3d_acc:04f}_epoch{epoch + 1:03d}.pth'
-                logger.info(f'Model save to {savepath}')
-                state = {
-                    'epoch': epoch + 1,
-                    'train_iou3d_acc': train_iou3d_acc,
-                    'eval_iou3d_acc': eval_iou3d_acc,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                }
-                torch.save(state, savepath)
-                best_state = copy.deepcopy(state)
+            savepath = result_dir / f'acc{eval_iou3d_acc:04f}_epoch{epoch + 1:03d}.pth'
+            logger.info(f'Model save to {savepath}')
+            state = {
+                'epoch': epoch + 1,
+                'train_iou3d_acc': train_iou3d_acc,
+                'eval_iou3d_acc': eval_iou3d_acc,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }
+            torch.save(state, savepath)
+            best_state = copy.deepcopy(state)
 
     savepath = result_dir / f'acc{best_iou3d_acc:04f}_best.pth'
     logger.info(f'Model save to {savepath}')
@@ -144,11 +133,11 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, n_ep
     logger.info(f'Done.')
 
 def main():
-    # CUDA_VISIBLE_DEVICES=0 python3 tools/dynamic_train.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/train/trackDynamic.pkl --infos data/Waymo/infos_train_02sweeps_filter_zero_gt.pkl
     parser = argparse.ArgumentParser()
     parser.add_argument('--track', help='Path to trackDynamic.pkl.')
     parser.add_argument('--infos', help='Path to infos file.')
-    parser.add_argument('--n_epoch', type=int, default=150, help='Epoch to run [default: 150].')
+    parser.add_argument('--split', type=int, default=16, help='Number of train split.')
+    parser.add_argument('--n_epoch', type=int, default=100, help='Epoch to run [default: 150].')
     parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate [default: 0.001].')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch Size during training [default: 64].')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='Weight Decay of Adam [default: 1e-4].')
@@ -157,16 +146,19 @@ def main():
     # Fix the random seed
     fixSeed(seed=10922081)
 
-    result_dir = pathlib.Path(args.track).parent / 'dynamic' / 'model'
+    result_dir = pathlib.Path(args.track) / 'dynamic' / 'model'
     result_dir.mkdir(parents=True, exist_ok=True)
-    log_dir = pathlib.Path('tools/log/dynamic_train')
+    log_dir = pathlib.Path(args.track) / 'dynamic' / 'log' / 'train'
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / f'model.txt'
+    log_file = log_dir / f'train.txt'
 
     logger = create_logger(log_file=log_file)
     logger.info('Load track data')
-    with open(args.track, 'rb') as f:
-        track = pickle.load(f)
+    track = {}
+    for i in range(args.split):
+        with open(os.path.join(args.track, f'trackDynamic_{i}.pkl'), 'rb') as f:
+            track_split = pickle.load(f)
+        track = dict(list(track.items()) + list(track_split.items()))
 
     logger.info('Load info data')
     with open(args.infos, 'rb') as f:

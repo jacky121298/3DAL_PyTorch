@@ -86,11 +86,6 @@ def build_se3_transform(xyzrpy: list):
     se3[0:3, 3] = np.matrix(xyzrpy[0:3]).transpose()
     return se3
 
-def get_obj(path: str):
-    with open(path, 'rb') as f:
-        obj = pickle.load(f)
-    return obj
-
 def transform_box(box, pose):
     '''Transforms 3d upright boxes from one frame to another.
     Args:
@@ -106,13 +101,25 @@ def transform_box(box, pose):
     transformed = np.concatenate([center, box[..., 3:6], heading[..., np.newaxis]], axis=-1)
     return transformed
 
+def reorganize_info(infos):
+    new_info = {}
+    for info in infos:
+        token = info['token']
+        new_info[token] = info
+    return new_info
+
 if __name__ == '__main__':
-    # python tools/vis_track.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/track.pkl --trackGT work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/trackGT.pkl --index 0
+    # python3 tools/visualize/vis_track.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/train/trackDynamic.pkl --infos data/Waymo/infos_train_02sweeps_filter_zero_gt.pkl
+    # python3 tools/visualize/vis_track.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/train/trackStatic.pkl --infos data/Waymo/infos_train_02sweeps_filter_zero_gt.pkl
     parser = argparse.ArgumentParser()
     parser.add_argument('--track', help='Path to track data.')
-    parser.add_argument('--trackGT', help='Path to trackGT.pkl.')
-    parser.add_argument('--index', help='Index to visulize.', type=int)
+    parser.add_argument('--infos', help='Path to infos file.')
+    parser.add_argument('--index', type=int, default=1, help='Index to visulize.')
     args = parser.parse_args()
+
+    with open(args.infos, 'rb') as f:
+        infos = pickle.load(f)
+    infos = reorganize_info(infos)
 
     with open(args.track, 'rb') as f:
         track = pickle.load(f)
@@ -127,12 +134,9 @@ if __name__ == '__main__':
         new_track.append(obj)
     
     print(f'[{bcolors.OKBLUE}Info{bcolors.ENDC}] Total numebr of track: {len(new_track)}')
-
-    with open(args.trackGT, 'rb') as f:
-        trackGT = pickle.load(f)
     
     vis = o3d.visualization.Visualizer()
-    vis.create_window(window_name='Track visualization', left=0, top=40)
+    vis.create_window(window_name='Track Visualization', left=0, top=40)
 
     render_option = vis.get_render_option()
     render_option.point_color_option = o3d.visualization.PointColorOption.ZCoordinate
@@ -141,19 +145,14 @@ if __name__ == '__main__':
     vis.add_geometry(coordinate_frame)
     
     data = new_track[args.index]
-    match = data['match'][-1]
-    pose = np.linalg.inv(trackGT[match]['pose'])
-
-    # Draw groundtruth bbox (red)
-    boxGT = transform_box(np.array(trackGT[match]['box']), pose)
-    draw_3dbbox(boxGT, vis, color=[255, 0, 0])
+    with open(infos[data['token'][0]]['anno_path'], 'rb') as f:
+        annos = pickle.load(f)
+    pose = np.linalg.inv(np.reshape(annos['veh_to_global'], [4, 4]))
 
     # Draw tracked bbox (green)
     bbox = transform_box(np.array(data['bbox']), pose)
     draw_3dbbox(bbox, vis, color=[0, 255, 0])
 
-    match = trackGT[match]['static'] == 1
-    print(f'[{bcolors.OKBLUE}Info{bcolors.ENDC}] Static or not: {match}')
     print(f'[{bcolors.OKBLUE}Info{bcolors.ENDC}] Numebr of bbox in track #{args.index}: {bbox.shape[0]}')
     
     lidars = np.vstack(data['point']).T

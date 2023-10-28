@@ -123,10 +123,6 @@ def calculate_init_iou(track, infos):
     return init_iou2d, init_iou3d, init_iou3d_acc
 
 def main():
-    # python3 tools/dynamic_init.py --track work_dirs/waymo_centerpoint_voxelnet_two_sweep_two_stage_bev_5point_ft_6epoch_freeze_with_vel/val/trackDynamic.pkl --infos data/Waymo/infos_val_02sweeps_filter_zero_gt.pkl
-    # [Init] #Vehicle: 245545, #Pedestrian: 264786, #Cyclist: 8140
-    # [Init] Box IoU (2D/3D): 0.7798/0.7172
-    # [Init] Box estimation accuracy: 0.8578
     parser = argparse.ArgumentParser()
     parser.add_argument('--track', help='Path to trackDynamic.pkl.')
     parser.add_argument('--infos', help='Path to infos file.')
