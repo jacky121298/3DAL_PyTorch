@@ -49,7 +49,7 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
     eval_iou3d = 0.0
     eval_iou3d_acc = 0.0
 
-    n_samples = 0
+    index, n_samples = 0, 0
     for i, (key, value) in enumerate(tqdm(track.items())):
         bbox = np.vstack(value['bbox'])
         types = np.stack(value['type'])
@@ -62,7 +62,7 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
             pose = np.linalg.inv(np.reshape(annos['veh_to_global'], [4, 4]))
             # For det_annos
             bbox[j] = transform_box(bbox[[j], ...], pose).squeeze()
-            final_bbox = final_bboxes[[n_samples + j], :]
+            final_bbox = final_bboxes[[index + j], :]
             heading_scores = np.zeros((1, NUM_HEADING_BIN))
             heading_residuals = np.zeros((1, NUM_HEADING_BIN))
             size_scores = np.zeros((1, NUM_SIZE_CLUSTER))
@@ -85,6 +85,7 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
                 continue
             bbox_gt = bbox_gt[[0, 1, 2, 3, 4, 5, -1]]
             bbox_gt = bbox_gt[np.newaxis, ...]
+            n_samples += 1
 
             heading_class_label, heading_residual_label = angle2class(bbox_gt[0, -1], NUM_HEADING_BIN)
             size_class_label, size_residual_label = size2class(bbox_gt[0, 3:6])
@@ -125,7 +126,7 @@ def postprocessing(track, infos, token2idx, final_bboxes, det_annos, result_path
                     break
             assert exist, 'Bounding box not in det_annos.'
         
-        n_samples += bbox.shape[0]
+        index += bbox.shape[0]
 
     logger.info(f'Saving results to {result_path}')
     with open(result_path, 'wb') as f:
@@ -162,9 +163,6 @@ def eval_one_epoch(model, dataloader, criterion):
         ID, init_box, bbox, bbox_gt, pts, token, mask_label, center_label, \
         heading_class_label, heading_residual_label, \
         size_class_label, size_residual_label = data
-        
-        if ID == None:
-            continue
         
         n_samples += pts.shape[0]
         pts = pts.transpose(2, 1).float().cuda()
@@ -220,9 +218,6 @@ def test_one_epoch(model, dataloader):
         ID, init_box, bbox, bbox_gt, pts, token, mask_label, center_label, \
         heading_class_label, heading_residual_label, \
         size_class_label, size_residual_label = data
-
-        if ID == None:
-            continue
         
         pts = pts.transpose(2, 1).float().cuda()
         bbox = bbox.transpose(2, 1).float().cuda()
