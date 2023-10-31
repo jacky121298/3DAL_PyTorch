@@ -34,3 +34,4 @@ This project is built upon the following codebases:
 2. https://github.com/open-mmlab/OpenPCDet
 3. https://github.com/tianweiy/CenterPoint
 4. https://github.com/charlesq34/frustum-pointnets
+5. https://github.com/simon3dv/frustum_pointnets_pytorch

@@ -21,6 +21,10 @@ pip install waymo-open-dataset-tf-1-15-0==1.2.0
 # Add 3DAL_PyTorch to PYTHONPATH by adding the following line to ~/.bashrc (change the path accordingly)
 export PYTHONPATH="${PYTHONPATH}:PATH_TO_THIS_REPO"
 
+# Frustum PointNets
+git clone https://github.com/simon3dv/frustum_pointnets_pytorch
+export PYTHONPATH="${PYTHONPATH}:PATH_TO_FRUSTUM_POINTNETS_PYTORCH"
+
 # Set the cuda path (change the path to your own cuda location)
 export PATH=/usr/local/cuda-10.0/bin:$PATH
 export CUDA_PATH=/usr/local/cuda-10.0
